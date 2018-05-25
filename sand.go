@@ -16,11 +16,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/randentropy"
 	"github.com/globalsign/mgo"
 	"github.com/pborman/uuid"
+	"golang.org/x/crypto/ripemd160"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -85,8 +89,9 @@ type URL struct {
 }
 
 type Pair struct {
-	Address    string `bson:"address"`
-	Keystore   string `bson:"keystore"`
+	EthAddress string `bson:"eth_address"`
+	BtcAddress string `bson:"btc_address"`
+	PublicKey  string `bson:"publicKey"`
 	PrivateKey string `bson:"privateKey"`
 }
 
@@ -243,8 +248,20 @@ func storeNewKey(ks keyStore, rand io.Reader, auth string, database *mgo.Collect
 
 	// keyjson, err := ks.StoreKey(a.URL.Path, key, auth)
 
-	newPair := &Pair{Address: hex.EncodeToString(key.Address[:]), PrivateKey: hex.EncodeToString(crypto.FromECDSA(key.PrivateKey))}
+	pkHash := btcutil.Hash160(crypto.FromECDSAPub(&key.PrivateKey.PublicKey))
+
+	BtcAddress := base58.CheckEncode(pkHash[:ripemd160.Size], chaincfg.MainNetParams.PubKeyHashAddrID)
+
+	// fmt.Printf("BtcAddress: {%s}\n", BtcAddress)
+
+	newPair := &Pair{
+		EthAddress: hex.EncodeToString(key.Address[:]),
+		BtcAddress: BtcAddress,
+		PublicKey:  hex.EncodeToString(crypto.FromECDSAPub(&key.PrivateKey.PublicKey)),
+		PrivateKey: hex.EncodeToString(crypto.FromECDSA(key.PrivateKey)),
+	}
 	// fmt.Printf("newPair: {%s}\n", newPair)
+	// os.Exit(3)
 
 	zeroKey(key.PrivateKey)
 
@@ -339,47 +356,6 @@ func (a *Address) SetBytes(b []byte) {
 	copy(a[AddressLength-len(b):], b)
 }
 
-var count = 0
-
-func main() {
-	fmt.Printf(time.Now().Format("2006-01-02T15:04:05Z07:00\n"))
-	var config Configuration
-
-	file, err := os.Open(os.Args[1])
-	if err != nil {
-		Fatalf("Failed to read config file")
-	}
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&config)
-
-	if err != nil {
-		Fatalf("Failed to json parse config")
-	}
-
-	dialInfo := &mgo.DialInfo{
-		Addrs:     config.Addrs,
-		Timeout:   time.Second * 1,
-		Database:  config.Database,
-		Username:  config.Username,
-		Password:  config.Password,
-		PoolLimit: config.PoolLimit,
-		Mechanism: "SCRAM-SHA-1",
-	}
-
-	session, err := mgo.DialWithInfo(dialInfo)
-	if nil != err {
-		panic(err)
-	}
-
-	database := session.DB(config.Database).C(config.Collection)
-
-	for {
-		accountCreate("", database)
-	}
-
-	defer session.Close()
-}
-
 // EncryptKey encrypts a key using the specified scrypt parameters into a json
 // blob that can be decrypted later on.
 func EncryptKey(key *Key, auth string, scryptN, scryptP int) ([]byte, error) {
@@ -437,4 +413,45 @@ func aesCTRXOR(key, inText, iv []byte) ([]byte, error) {
 	outText := make([]byte, len(inText))
 	stream.XORKeyStream(outText, inText)
 	return outText, err
+}
+
+var count = 0
+
+func main() {
+	fmt.Printf(time.Now().Format("2006-01-02T15:04:05Z07:00\n"))
+	var config Configuration
+
+	file, err := os.Open(os.Args[1])
+	if err != nil {
+		Fatalf("Failed to read config file")
+	}
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&config)
+
+	if err != nil {
+		Fatalf("Failed to json parse config")
+	}
+
+	dialInfo := &mgo.DialInfo{
+		Addrs:     config.Addrs,
+		Timeout:   time.Second * 1,
+		Database:  config.Database,
+		Username:  config.Username,
+		Password:  config.Password,
+		PoolLimit: config.PoolLimit,
+		Mechanism: "SCRAM-SHA-1",
+	}
+
+	session, err := mgo.DialWithInfo(dialInfo)
+	if nil != err {
+		panic(err)
+	}
+
+	database := session.DB(config.Database).C(config.Collection)
+
+	for {
+		accountCreate("", database)
+	}
+
+	defer session.Close()
 }

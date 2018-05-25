@@ -1,4 +1,4 @@
-.PHONY: eth
+.PHONY: sand
 
-eth:
-	GOPATH="$(PWD)" && export GOPATH && go build -o build/eth ./eth.go
+sand:
+	GOPATH="$(PWD)" && export GOPATH && go build -o build/sand ./sand.go

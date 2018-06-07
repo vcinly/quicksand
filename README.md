@@ -1,8 +1,11 @@
 # quicksand
 Generate Cryptocurrency Account
 
-```bash
-make eth
+Generating public/private ecdsa key pair and ETH/BTC address
+Using the mgo MongoDB driver to store data
 
-./build/eth ./config/mongo.json
+```bash
+make sand
+
+./build/sand ./config/mgo.json
 ```

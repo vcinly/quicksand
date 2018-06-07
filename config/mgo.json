@@ -1,0 +1,8 @@
+{
+    "Addrs":["127.0.0.1:27017"],
+    "Database":"beach",
+    "Collection":"sand",
+    "Username":"",
+    "Password":"",
+    "PoolLimit": 4096
+}

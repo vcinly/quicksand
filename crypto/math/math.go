@@ -21,3 +21,14 @@ func ReadBits(bigint *big.Int, buf []byte) {
 		}
 	}
 }
+
+// PaddedBigBytes encodes a big integer as a big-endian byte slice. The length
+// of the slice is at least n bytes.
+func PaddedBigBytes(bigint *big.Int, n int) []byte {
+	if bigint.BitLen()/8 >= n {
+		return bigint.Bytes()
+	}
+	ret := make([]byte, n)
+	ReadBits(bigint, ret)
+	return ret
+}

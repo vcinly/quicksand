@@ -4,3 +4,4 @@
 /eth
 /build/*
 .idea/*
+go_build_key_go
